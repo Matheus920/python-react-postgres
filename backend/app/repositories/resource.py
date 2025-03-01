@@ -131,17 +131,21 @@ class ResourceRepository(BaseRepository[Resource, ResourceCreate, ResourceUpdate
         owner_id: Optional[int] = None,
         is_public: Optional[bool] = None,
         search: Optional[str] = None,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = "asc",
         skip: int = 0,
         limit: int = 100
     ) -> List[Resource]:
         """
-        Get resources with filtering.
+        Get resources with filtering and sorting.
         
         Args:
             db: Database session
             owner_id: Optional owner ID filter
             is_public: Optional public status filter
             search: Optional search term for name or description
+            sort_by: Optional field to sort by (name, created_at, etc.)
+            sort_order: Optional sort order (asc or desc)
             skip: Number of records to skip
             limit: Maximum number of records to return
             
@@ -166,6 +170,21 @@ class ResourceRepository(BaseRepository[Resource, ResourceCreate, ResourceUpdate
         
         if filters:
             query = query.where(and_(*filters))
+        
+        # Apply sorting
+        if sort_by:
+            column = getattr(Resource, sort_by, None)
+            if column is not None:
+                if sort_order.lower() == "desc":
+                    query = query.order_by(column.desc())
+                else:
+                    query = query.order_by(column.asc())
+            else:
+                # Default sort by id if column not found
+                query = query.order_by(Resource.id.asc())
+        else:
+            # Default sort by id
+            query = query.order_by(Resource.id.asc())
         
         # Apply pagination
         query = query.offset(skip).limit(limit)

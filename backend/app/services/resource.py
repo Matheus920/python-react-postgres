@@ -64,10 +64,12 @@ class ResourceService:
         current_user: User,
         owner_id: Optional[int] = None,
         is_public: Optional[bool] = None,
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = "asc"
     ) -> Page[Resource]:
         """
-        Get resources with pagination and filtering.
+        Get resources with pagination, filtering, and sorting.
         
         Args:
             db: Database session
@@ -76,6 +78,8 @@ class ResourceService:
             owner_id: Optional owner ID filter
             is_public: Optional public status filter
             search: Optional search term
+            sort_by: Optional field to sort by
+            sort_order: Optional sort order (asc or desc)
             
         Returns:
             Page[Resource]: Paginated resources
@@ -86,6 +90,8 @@ class ResourceService:
             owner_id=owner_id,
             is_public=is_public,
             search=search,
+            sort_by=sort_by,
+            sort_order=sort_order,
             skip=pagination.skip,
             limit=pagination.limit
         )

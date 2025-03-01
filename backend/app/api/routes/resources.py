@@ -26,10 +26,12 @@ async def read_resources(
     owner_id: Optional[int] = None,
     is_public: Optional[bool] = None,
     search: Optional[str] = None,
+    sort_by: Optional[str] = Query(None, description="Field to sort by (name, id, etc.)"),
+    sort_order: Optional[str] = Query("asc", description="Sort order (asc or desc)"),
     current_user: User = Depends(get_current_active_user),
 ) -> Any:
     """
-    Retrieve resources with filtering and pagination.
+    Retrieve resources with filtering, sorting, and pagination.
     """
     return await resource_service.get_resources(
         db=db,
@@ -38,6 +40,8 @@ async def read_resources(
         owner_id=owner_id,
         is_public=is_public,
         search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
 
 

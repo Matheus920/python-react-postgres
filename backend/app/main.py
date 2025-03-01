@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, users, resources
+from app.api.routes import auth, users, resources, cache
 from app.core.config import settings
+from app.core.middleware import CacheCleanupMiddleware
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -11,7 +12,7 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
 
-# Set up CORS middleware
+# Set up middlewares
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -20,10 +21,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add cache cleanup middleware
+app.add_middleware(
+    CacheCleanupMiddleware,
+    cleanup_interval=settings.CACHE_EXPIRE_SECONDS // 2,  # Clean up at half the cache expiration time
+)
+
 # Include API routes
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(users.router, prefix=settings.API_V1_STR)
 app.include_router(resources.router, prefix=settings.API_V1_STR)
+app.include_router(cache.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")

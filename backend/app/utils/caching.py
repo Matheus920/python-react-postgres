@@ -1,14 +1,18 @@
 import functools
 import hashlib
 import json
+import logging
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, Optional, TypeVar, cast
+from typing import Any, Callable, Dict, List, Optional, TypeVar, cast
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.db.session import get_db
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Simple in-memory cache
 _cache: Dict[str, Dict[str, Any]] = {}
@@ -131,14 +135,49 @@ def get_cache_stats() -> Dict[str, Any]:
     Returns:
         Dict[str, Any]: Cache statistics
     """
+    now = datetime.now()
+    entries_info = []
+    expired_count = 0
+    active_count = 0
+    
+    for k, v in _cache.items():
+        expires_in = (v["expire_time"] - now).total_seconds()
+        is_expired = expires_in <= 0
+        
+        if is_expired:
+            expired_count += 1
+        else:
+            active_count += 1
+            
+        entries_info.append({
+            "key": k,
+            "expires_in": expires_in,
+            "is_expired": is_expired,
+            "size": len(json.dumps(v["result"])),
+        })
+    
     return {
         "total_entries": len(_cache),
+        "active_entries": active_count,
+        "expired_entries": expired_count,
         "memory_usage": len(json.dumps(_cache)),
-        "entries": [
-            {
-                "key": k,
-                "expires_in": (v["expire_time"] - datetime.now()).total_seconds(),
-            }
-            for k, v in _cache.items()
-        ],
+        "entries": entries_info,
     }
+
+
+def clear_expired_cache() -> int:
+    """
+    Clear expired cache entries.
+    
+    Returns:
+        int: Number of cleared entries
+    """
+    global _cache
+    now = datetime.now()
+    expired_keys = [k for k, v in _cache.items() if v["expire_time"] <= now]
+    
+    for k in expired_keys:
+        del _cache[k]
+    
+    logger.info(f"Cleared {len(expired_keys)} expired cache entries")
+    return len(expired_keys)

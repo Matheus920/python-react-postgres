@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Table
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Table, Index
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -12,6 +12,10 @@ resource_permission = Table(
     Column("resource_id", Integer, ForeignKey("resources.id"), primary_key=True),
     Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
     Column("permission_type", String, nullable=False),  # e.g., "read", "write", "admin"
+    
+    # Add indexes for faster permission lookups
+    Index("ix_resource_permission_resource_id", "resource_id"),
+    Index("ix_resource_permission_user_id", "user_id"),
 )
 
 
@@ -36,10 +40,10 @@ class Resource(Base):
     description = Column(Text)
     content = Column(Text)
     meta_data = Column(Text)  # JSON string (renamed from metadata to avoid conflict)
-    is_public = Column(Boolean, default=False)
+    is_public = Column(Boolean, default=False, index=True)  # Add index for filtering by public status
     
     # Foreign keys
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Add index for filtering by owner
     
     # Relationships
     owner = relationship("User", back_populates="resources")
