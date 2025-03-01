@@ -15,6 +15,26 @@ class ResourceRepository(BaseRepository[Resource, ResourceCreate, ResourceUpdate
     Repository for Resource model.
     """
     
+    async def get(self, db: AsyncSession, id: Any) -> Optional[Resource]:
+        """
+        Get a resource by ID with eager loading of relationships.
+        
+        Args:
+            db: Database session
+            id: ID of the resource to get
+            
+        Returns:
+            Optional[Resource]: The resource if found, None otherwise
+        """
+        # Override the base get method to eagerly load the shared_with relationship
+        query = (
+            select(Resource)
+            .options(joinedload(Resource.shared_with))
+            .where(Resource.id == id)
+        )
+        result = await db.execute(query)
+        return result.scalars().first()
+    
     @cached()
     async def get_by_user(
         self, 

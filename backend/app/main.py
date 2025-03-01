@@ -1,9 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 
 from app.api.routes import auth, users, resources, cache
 from app.core.config import settings
 from app.core.middleware import CacheCleanupMiddleware
+from app.db.seed import seed_db
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -32,6 +37,18 @@ app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(users.router, prefix=settings.API_V1_STR)
 app.include_router(resources.router, prefix=settings.API_V1_STR)
 app.include_router(cache.router, prefix=settings.API_V1_STR)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    Initialize application on startup.
+    """
+    logger.info("Starting up application")
+    
+    # Seed the database with initial data
+    # Use force=True to clean the database before seeding
+    await seed_db(force=True)
 
 
 @app.get("/")

@@ -48,7 +48,8 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    user = await user_repository.get(db, id=token_data.sub)
+    # Convert token_data.sub (string) to integer for database query
+    user = await user_repository.get(db, id=int(token_data.sub))
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
