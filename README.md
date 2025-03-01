@@ -1,100 +1,83 @@
-# Development Container for Python, FastAPI, React TypeScript, and PostgreSQL
+# Resource Management System
 
-This repository contains a development container configuration for a full-stack application using Python 3.11, FastAPI 0.109, React 18 with TypeScript, and PostgreSQL 15.
+A full-stack application for managing resources with secure authentication and efficient data retrieval.
+
+## Project Overview
+
+This project is a Python Full-Stack Assessment that demonstrates proficiency in Python development, database optimization, and secure authentication. It implements a Resource Management System that allows users to create, manage, and access resources with proper authentication and authorization.
+
+## Features
+
+- User authentication and authorization with JWT
+- Role-based access control (RBAC)
+- Resource management with ownership and sharing
+- Efficient data retrieval with pagination and filtering
+- Caching for improved performance
+- Comprehensive error handling
 
 ## Tech Stack
 
 ### Backend
-- **Python 3.11**
-- **FastAPI 0.109**
-- **SQLAlchemy 2.0**
-- **pytest 7.2**
-- **PostgreSQL 15**
+- Python 3.11
+- FastAPI 0.109
+- SQLAlchemy 2.0
+- PostgreSQL 15
+- Alembic for migrations
+- Pytest for testing
 
-### Frontend
-- **React 18**
-- **TypeScript**
-- **Node.js 18**
+### Frontend (Coming Soon)
+- React 18
+- TypeScript
+- React Router
+- React Query
+- Formik & Yup
+- Tailwind CSS
+
+## Project Structure
+
+The project follows a clean, layered architecture:
+
+```
+project/
+├── backend/             # Backend application
+│   ├── app/             # Application code
+│   │   ├── api/         # API routes and controllers
+│   │   ├── core/        # Core functionality
+│   │   ├── db/          # Database configuration
+│   │   ├── models/      # Database models
+│   │   ├── repositories/# Data access layer
+│   │   ├── schemas/     # Data validation and serialization
+│   │   ├── services/    # Business logic
+│   │   ├── tests/       # Tests
+│   │   └── utils/       # Utilities
+│   ├── alembic/         # Database migrations
+│   ├── requirements.txt # Dependencies
+│   └── README.md        # Backend documentation
+└── frontend/            # Frontend application (Coming Soon)
+```
 
 ## Getting Started
 
-### Prerequisites
-- [Visual Studio Code](https://code.visualstudio.com/)
-- [Docker](https://www.docker.com/products/docker-desktop)
-- [VS Code Remote - Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+### Backend
 
-### Setup Instructions
+See the [backend README](backend/README.md) for detailed instructions on setting up and running the backend.
 
-1. Clone this repository
-2. Open the repository in VS Code
-3. When prompted, click "Reopen in Container" or run the "Remote-Containers: Reopen in Container" command from the command palette
-4. Wait for the container to build and initialize (this may take a few minutes the first time)
+### Frontend
 
-## Development Environment
+Coming soon.
 
-The development container includes:
+## User Stories
 
-- Python 3.11 with FastAPI and required packages
-- PostgreSQL 15 database
-- Node.js and npm for React development with TypeScript
-- VS Code extensions for Python, TypeScript, React, and PostgreSQL development
-- Pre-configured settings for linting, formatting, and testing
+1. **Efficient Data Retrieval**
+   - Retrieve large datasets with pagination and filtering
+   - Optimize database queries for performance
+   - Implement caching strategies for frequently accessed data
 
-## Environment Variables
+2. **Secure Authentication**
+   - Implement user registration and authentication
+   - Ensure secure password storage and handling
+   - Implement role-based access control (RBAC)
 
-A sample `.env.example` file is provided with common environment variables. Copy this file to `.env` and modify as needed:
+## License
 
-```bash
-cp .env.example .env
-```
-
-## Port Forwarding
-
-The following ports are forwarded from the container to your local machine:
-
-- **8000**: FastAPI backend
-- **5432**: PostgreSQL database
-- **3000**: React development server
-
-## Working with the Stack
-
-### Backend (FastAPI)
-
-The Python virtual environment is automatically activated in the container. You can start the FastAPI server with:
-
-```bash
-cd backend  # If you have a backend directory
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Frontend (React TypeScript)
-
-To create a new React TypeScript project:
-
-```bash
-npx create-react-app frontend --template typescript
-cd frontend
-npm start
-```
-
-### Database (PostgreSQL)
-
-The PostgreSQL database is available at:
-
-- **Host**: db
-- **Port**: 5432
-- **Username**: postgres
-- **Password**: postgres
-- **Database**: postgres
-
-You can connect to the database using the VS Code PostgreSQL extension or with psql:
-
-```bash
-psql -h db -U postgres
-```
-
-## Additional Information
-
-- The container includes common development tools and extensions
-- Code formatting and linting are configured to run on save
-- The PostgreSQL data is persisted in a Docker volume
+This project is licensed under the MIT License - see the LICENSE file for details.
