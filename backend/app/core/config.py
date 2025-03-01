@@ -1,7 +1,8 @@
+import os
 import secrets
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import AnyHttpUrl, PostgresDsn, field_validator
+from pydantic import AnyHttpUrl, PostgresDsn, field_validator, AnyUrl
 from pydantic_settings import BaseSettings
 
 
@@ -19,12 +20,17 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "resource_management"
     POSTGRES_PORT: int = 5432
-    DATABASE_URI: Optional[PostgresDsn] = None
+    DATABASE_URI: Optional[AnyUrl] = None
 
     @field_validator("DATABASE_URI", mode="before")
     def assemble_db_connection(cls, v: Optional[str], info) -> Any:
         if isinstance(v, str):
             return v
+        
+        # Check if DATABASE_URL is set in environment variables
+        database_url = os.environ.get("DATABASE_URL")
+        if database_url:
+            return database_url
         
         values = info.data
         return PostgresDsn.build(

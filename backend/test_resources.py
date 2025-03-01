@@ -77,13 +77,17 @@ async def main() -> None:
     """
     logger.info("Starting application and testing seed data")
     
+    # Set the DATABASE_URL environment variable to use the Docker PostgreSQL container
+    os.environ["DATABASE_URL"] = "postgresql+asyncpg://postgres:postgres@db:5432/postgres"
+    
     # Start the application in the background
     process = subprocess.Popen(
         ["python", "run.py"],
         cwd="backend",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True
+        text=True,
+        env=os.environ.copy()  # Pass the modified environment variables
     )
     
     logger.info(f"Started application with PID {process.pid}")
