@@ -99,6 +99,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
           value={localFilters.is_public === null ? '' : localFilters.is_public ? 'true' : 'false'}
           onChange={(e) => {
             const value = e.target.value;
+            // Cast to unknown first to avoid type error
             handleInputChange({
               ...e,
               target: {
@@ -106,7 +107,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
                 name: 'is_public',
                 value: value === '' ? null : value === 'true',
               },
-            } as React.ChangeEvent<HTMLSelectElement>);
+            } as unknown as React.ChangeEvent<HTMLSelectElement>);
           }}
         >
           <option value="">All Resources</option>

@@ -15,32 +15,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
 
     # Database configuration
-    POSTGRES_SERVER: str = "localhost"
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres"
-    POSTGRES_DB: str = "resource_management"
-    POSTGRES_PORT: int = 5432
-    DATABASE_URI: Optional[AnyUrl] = None
-
-    @field_validator("DATABASE_URI", mode="before")
-    def assemble_db_connection(cls, v: Optional[str], info) -> Any:
-        if isinstance(v, str):
-            return v
-        
-        # Check if DATABASE_URL is set in environment variables
-        database_url = os.environ.get("DATABASE_URL")
-        if database_url:
-            return database_url
-        
-        values = info.data
-        return PostgresDsn.build(
-            scheme="postgresql+asyncpg",
-            username=values.get("POSTGRES_USER"),
-            password=values.get("POSTGRES_PASSWORD"),
-            host=values.get("POSTGRES_SERVER"),
-            port=values.get("POSTGRES_PORT"),
-            path=f"{values.get('POSTGRES_DB') or ''}",
-        )
+    DATABASE_URI: str = "postgresql+asyncpg://postgres:postgres@db:5432/postgres"
 
     # Project information
     PROJECT_NAME: str = "Resource Management System"
@@ -49,9 +24,11 @@ class Settings(BaseSettings):
     CACHE_ENABLED: bool = True
     CACHE_EXPIRE_SECONDS: int = 60 * 5  # 5 minutes
 
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+    model_config = {
+        "case_sensitive": True,
+        "env_file": ".env",
+        "extra": "ignore"  # Allow extra fields from environment variables
+    }
 
 
 settings = Settings()

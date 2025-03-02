@@ -47,8 +47,8 @@ async def startup_event():
     logger.info("Starting up application")
     
     # Seed the database with initial data
-    # Use force=True to clean the database before seeding
-    await seed_db(force=True)
+    # Use force=False to avoid cleaning the database before seeding
+    await seed_db(force=False)
 
 
 @app.get("/")

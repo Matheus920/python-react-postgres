@@ -68,6 +68,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setAuthState({ ...authState, loading: true, error: null });
       
       const authToken = await authApi.login({ username, password });
+      
+      // Store the token in localStorage
+      localStorage.setItem('token', authToken.access_token);
+      
+      // Set the token in the authApi
       authApi.setToken(authToken.access_token);
       
       const user = await authApi.getCurrentUser();
@@ -78,6 +83,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         loading: false,
         error: null,
       });
+      
+      console.log('Login successful, token stored:', authToken.access_token);
     } catch (error) {
       console.error('Login failed:', error);
       setAuthState({
