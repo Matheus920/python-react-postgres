@@ -121,13 +121,19 @@ class ResourceService:
                     db,
                     user_id=current_user.id,
                     skip=pagination.skip,
-                    limit=pagination.limit
+                    limit=pagination.limit,
+                    sort_by=sort_by,
+                    sort_order=sort_order,
+                    is_public=is_public,
+                    search=search
                 )
                 
                 # Count total resources
                 total = await resource_repository.count_by_user(
                     db, 
-                    user_id=current_user.id
+                    user_id=current_user.id,
+                    is_public=is_public,
+                    search=search
                 )
             else:
                 # Get only resources owned by the user (with additional filters)
@@ -159,7 +165,11 @@ class ResourceService:
         db: AsyncSession,
         *,
         pagination: PaginationParams,
-        user_id: int
+        user_id: int,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = "asc",
+        is_public: Optional[bool] = None,
+        search: Optional[str] = None
     ) -> Page[Resource]:
         """
         Get resources owned by or shared with a user.
@@ -168,6 +178,10 @@ class ResourceService:
             db: Database session
             pagination: Pagination parameters
             user_id: User ID
+            sort_by: Optional field to sort by
+            sort_order: Optional sort order (asc or desc)
+            is_public: Optional public status filter
+            search: Optional search term
             
         Returns:
             Page[Resource]: Paginated resources
@@ -177,11 +191,20 @@ class ResourceService:
             db,
             user_id=user_id,
             skip=pagination.skip,
-            limit=pagination.limit
+            limit=pagination.limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            is_public=is_public,
+            search=search
         )
         
         # Count total resources
-        total = await resource_repository.count_by_user(db, user_id=user_id)
+        total = await resource_repository.count_by_user(
+            db, 
+            user_id=user_id,
+            is_public=is_public,
+            search=search
+        )
         
         # Create paginated response
         return create_page(resources, total, pagination)

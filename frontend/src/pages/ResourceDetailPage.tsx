@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { resourcesApi } from '../api/resourcesApi';
@@ -27,6 +27,16 @@ const ResourceDetailPage: React.FC = () => {
       return metadata[key] || 'N/A';
     } catch (error) {
       return 'Invalid';
+    }
+  };
+  
+  // Get all metadata as an object
+  const getMetadata = (resource: Resource) => {
+    if (!resource.meta_data) return {};
+    try {
+      return JSON.parse(resource.meta_data);
+    } catch (error) {
+      return { error: 'Invalid metadata format' };
     }
   };
   
@@ -106,9 +116,26 @@ const ResourceDetailPage: React.FC = () => {
           {resource.meta_data && (
             <div className="resource-section">
               <h3>Metadata</h3>
-              <pre className="resource-metadata">
-                {resource.meta_data}
-              </pre>
+              <div className="metadata-container">
+                <div className="metadata-content">
+                  {Object.entries(getMetadata(resource)).length > 0 ? (
+                    <div className="metadata-grid">
+                      {Object.entries(getMetadata(resource)).map(([key, value]) => (
+                        <div key={key} className="metadata-item">
+                          <div className="metadata-key">{key}:</div>
+                          <div className="metadata-value">
+                            {typeof value === 'object' 
+                              ? JSON.stringify(value) 
+                              : String(value)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>No metadata available</p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

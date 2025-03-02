@@ -4,10 +4,16 @@ import { ResourceSort } from '../../types/resource';
 interface SortControlsProps {
   sort: ResourceSort;
   onChange: (sort: ResourceSort) => void;
+  onApply?: () => void;
 }
 
-const SortControls: React.FC<SortControlsProps> = ({ sort, onChange }) => {
+const SortControls: React.FC<SortControlsProps> = ({ 
+  sort, 
+  onChange, 
+  onApply 
+}: SortControlsProps) => {
   const [localSort, setLocalSort] = useState<ResourceSort>(sort);
+  const [isApplying, setIsApplying] = useState(false);
   
   // Update local sort when props change
   useEffect(() => {
@@ -32,6 +38,37 @@ const SortControls: React.FC<SortControlsProps> = ({ sort, onChange }) => {
     };
     setLocalSort(newSort);
     onChange(newSort);
+  };
+  
+  // Apply sorting
+  const handleApplySorting = () => {
+    // Show loading state
+    setIsApplying(true);
+    
+    try {
+      console.log('Applying sorting:', localSort);
+      
+      // First update the parent component's state with the local sort
+      onChange(localSort);
+      
+      // Then trigger the onApply callback to force a refetch
+      if (onApply) {
+        // Use setTimeout to ensure the state update has been processed
+        setTimeout(() => {
+          onApply();
+          // Hide loading state after a short delay to ensure the user sees the feedback
+          setTimeout(() => {
+            setIsApplying(false);
+          }, 300);
+        }, 100);
+      } else {
+        // If no onApply callback, just hide the loading state
+        setIsApplying(false);
+      }
+    } catch (error) {
+      console.error('Error applying sorting:', error);
+      setIsApplying(false);
+    }
   };
   
   return (
@@ -62,6 +99,24 @@ const SortControls: React.FC<SortControlsProps> = ({ sort, onChange }) => {
           <option value="asc">Ascending</option>
           <option value="desc">Descending</option>
         </select>
+      </div>
+      
+      <div className="sort-actions">
+        <button 
+          onClick={handleApplySorting} 
+          className="button"
+          aria-label="Apply sorting"
+          disabled={isApplying}
+        >
+          {isApplying ? (
+            <>
+              <span className="button-spinner"></span>
+              Applying...
+            </>
+          ) : (
+            'Apply Sorting'
+          )}
+        </button>
       </div>
     </div>
   );

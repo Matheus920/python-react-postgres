@@ -19,16 +19,59 @@ export const resourcesApi = {
     filters: ResourceFilters = {},
     sort: ResourceSort = {}
   ): Promise<Page<Resource>> {
-    const params = {
-      skip,
-      limit,
-      ...filters,
-      ...sort,
-    };
+    try {
+      console.log("API call - getResources with params:", {
+        skip,
+        limit,
+        filters,
+        sort,
+      });
 
-    // Use URL with trailing slash to avoid redirect issues
-    const response = await axios.get<Page<Resource>>("/resources/", { params });
-    return response.data;
+      // Clean up filters to remove null values
+      const cleanFilters = Object.entries(filters).reduce(
+        (acc, [key, value]) => {
+          if (value !== null && value !== undefined && value !== "") {
+            acc[key] = value;
+          }
+          return acc;
+        },
+        {} as Record<string, any>
+      );
+
+      // Clean up sort to remove null/undefined values
+      const cleanSort = Object.entries(sort).reduce((acc, [key, value]) => {
+        if (value !== null && value !== undefined && value !== "") {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+
+      const params = {
+        skip,
+        limit,
+        ...cleanFilters,
+        ...cleanSort,
+      };
+
+      console.log("Final API params:", params);
+
+      // Use URL with trailing slash to avoid redirect issues
+      const response = await axios.get<Page<Resource>>("/resources/", {
+        params,
+        // Disable caching
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      });
+
+      console.log("API response:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching resources:", error);
+      throw error;
+    }
   },
 
   /**

@@ -42,7 +42,11 @@ class ResourceRepository(BaseRepository[Resource, ResourceCreate, ResourceUpdate
         *, 
         user_id: int,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = "asc",
+        is_public: Optional[bool] = None,
+        search: Optional[str] = None
     ) -> List[Resource]:
         """
         Get resources owned by or shared with a user.
@@ -52,48 +56,116 @@ class ResourceRepository(BaseRepository[Resource, ResourceCreate, ResourceUpdate
             user_id: User ID
             skip: Number of records to skip
             limit: Maximum number of records to return
+            sort_by: Optional field to sort by (name, created_at, etc.)
+            sort_order: Optional sort order (asc or desc)
+            is_public: Optional public status filter
+            search: Optional search term for name or description
             
         Returns:
             List[Resource]: List of resources
         """
-        query = (
-            select(Resource)
-            .where(
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"get_by_user called with: user_id={user_id}, sort_by={sort_by}, sort_order={sort_order}, is_public={is_public}, search={search}")
+        
+        # Base condition: resources owned by or shared with the user
+        base_condition = or_(
+            Resource.owner_id == user_id,
+            Resource.id.in_(
+                select(resource_permission.c.resource_id)
+                .where(resource_permission.c.user_id == user_id)
+            )
+        )
+        
+        # Apply additional filters
+        filters = [base_condition]
+        
+        if is_public is not None:
+            filters.append(Resource.is_public == is_public)
+        
+        if search:
+            filters.append(
                 or_(
-                    Resource.owner_id == user_id,
-                    Resource.id.in_(
-                        select(resource_permission.c.resource_id)
-                        .where(resource_permission.c.user_id == user_id)
-                    )
+                    Resource.name.ilike(f"%{search}%"),
+                    Resource.description.ilike(f"%{search}%")
                 )
             )
-            .offset(skip)
-            .limit(limit)
-        )
+        
+        # Build the query with all filters
+        query = select(Resource).where(and_(*filters))
+        
+        # Apply sorting
+        if sort_by:
+            column = getattr(Resource, sort_by, None)
+            if column is not None:
+                if sort_order and sort_order.lower() == "desc":
+                    logger.info(f"Sorting by {sort_by} DESC")
+                    query = query.order_by(column.desc())
+                else:
+                    logger.info(f"Sorting by {sort_by} ASC")
+                    query = query.order_by(column.asc())
+            else:
+                # Default sort by id if column not found
+                logger.info(f"Column {sort_by} not found, sorting by id ASC")
+                query = query.order_by(Resource.id.asc())
+        else:
+            # Default sort by id
+            logger.info("No sort_by provided, sorting by id ASC")
+            query = query.order_by(Resource.id.asc())
+        
+        # Apply pagination
+        query = query.offset(skip).limit(limit)
+        
         result = await db.execute(query)
         return result.scalars().all()
     
     @cached()
-    async def count_by_user(self, db: AsyncSession, *, user_id: int) -> int:
+    async def count_by_user(
+        self, 
+        db: AsyncSession, 
+        *, 
+        user_id: int,
+        is_public: Optional[bool] = None,
+        search: Optional[str] = None
+    ) -> int:
         """
         Count resources owned by or shared with a user.
         
         Args:
             db: Database session
             user_id: User ID
+            is_public: Optional public status filter
+            search: Optional search term for name or description
             
         Returns:
             int: Number of resources
         """
-        query = select(func.count()).where(
-            or_(
-                Resource.owner_id == user_id,
-                Resource.id.in_(
-                    select(resource_permission.c.resource_id)
-                    .where(resource_permission.c.user_id == user_id)
-                )
+        # Base condition: resources owned by or shared with the user
+        base_condition = or_(
+            Resource.owner_id == user_id,
+            Resource.id.in_(
+                select(resource_permission.c.resource_id)
+                .where(resource_permission.c.user_id == user_id)
             )
         )
+        
+        # Apply additional filters
+        filters = [base_condition]
+        
+        if is_public is not None:
+            filters.append(Resource.is_public == is_public)
+        
+        if search:
+            filters.append(
+                or_(
+                    Resource.name.ilike(f"%{search}%"),
+                    Resource.description.ilike(f"%{search}%")
+                )
+            )
+        
+        # Build the query with all filters
+        query = select(func.count()).where(and_(*filters))
+        
         result = await db.execute(query)
         return result.scalar_one()
     
@@ -143,7 +215,8 @@ class ResourceRepository(BaseRepository[Resource, ResourceCreate, ResourceUpdate
         result = await db.execute(query)
         return result.scalar_one()
     
-    @cached()
+    # Use a custom cache key that explicitly includes sort_order
+    @cached(cache_key_prefix="get_with_filter")
     async def get_with_filter(
         self,
         db: AsyncSession,
@@ -172,6 +245,11 @@ class ResourceRepository(BaseRepository[Resource, ResourceCreate, ResourceUpdate
         Returns:
             List[Resource]: List of resources
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"get_with_filter called with: owner_id={owner_id}, is_public={is_public}, search={search}, sort_by={sort_by}, sort_order={sort_order}, skip={skip}, limit={limit}")
+        
         query = select(Resource)
         
         # Apply filters
@@ -195,15 +273,19 @@ class ResourceRepository(BaseRepository[Resource, ResourceCreate, ResourceUpdate
         if sort_by:
             column = getattr(Resource, sort_by, None)
             if column is not None:
-                if sort_order.lower() == "desc":
+                if sort_order and sort_order.lower() == "desc":
+                    logger.info(f"Sorting by {sort_by} DESC")
                     query = query.order_by(column.desc())
                 else:
+                    logger.info(f"Sorting by {sort_by} ASC")
                     query = query.order_by(column.asc())
             else:
                 # Default sort by id if column not found
+                logger.info(f"Column {sort_by} not found, sorting by id ASC")
                 query = query.order_by(Resource.id.asc())
         else:
             # Default sort by id
+            logger.info("No sort_by provided, sorting by id ASC")
             query = query.order_by(Resource.id.asc())
         
         # Apply pagination

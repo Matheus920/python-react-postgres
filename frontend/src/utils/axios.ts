@@ -7,6 +7,10 @@ const axiosInstance = axios.create({
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
+    // Disable caching by default
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
+    'Expires': '0',
   },
   // Disable automatic redirect following to handle redirects manually
   maxRedirects: 0,
@@ -41,6 +45,18 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response: AxiosResponse): AxiosResponse | Promise<AxiosResponse> => {
     console.log('Response successful:', response.config.url);
+    console.log('Response status:', response.status);
+    console.log('Response data type:', typeof response.data);
+    
+    // For debugging resource API calls
+    if (response.config.url?.includes('/resources')) {
+      console.log('Resource API response:', {
+        url: response.config.url,
+        method: response.config.method,
+        params: response.config.params,
+        data: response.data
+      });
+    }
     
     // Handle redirects manually
     if (response.status >= 300 && response.status < 400 && response.headers.location) {
@@ -60,7 +76,14 @@ axiosInstance.interceptors.response.use(
       return axiosInstance({
         url: fullRedirectUrl,
         method: response.config.method,
-        headers: response.config.headers,
+        headers: {
+          ...response.config.headers,
+          // Ensure cache headers are included in the redirect
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+        params: response.config.params,
         data: response.config.data,
       });
     }

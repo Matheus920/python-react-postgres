@@ -59,12 +59,15 @@ def _get_cache_key(func: Callable, *args: Any, **kwargs: Any) -> str:
     
     # Create a hash of the key parts
     key_str = ":".join(key_parts)
+    logger.debug(f"Cache key parts: {key_parts}")
+    logger.debug(f"Cache key string: {key_str}")
     return hashlib.md5(key_str.encode()).hexdigest()
 
 
 def cached(
     expire_seconds: Optional[int] = None,
     skip_kwargs: Optional[list] = None,
+    cache_key_prefix: Optional[str] = None,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Cache decorator for functions.
@@ -72,6 +75,7 @@ def cached(
     Args:
         expire_seconds: Cache expiration time in seconds (defaults to settings.CACHE_EXPIRE_SECONDS)
         skip_kwargs: List of keyword arguments to skip when generating cache key
+        cache_key_prefix: Optional prefix to add to the cache key
         
     Returns:
         Callable: Decorated function
@@ -88,8 +92,46 @@ def cached(
             # Filter out kwargs that should be skipped
             cache_kwargs = {k: v for k, v in kwargs.items() if k not in skip_kwargs}
             
+            # Log the function call and its arguments for debugging
+            logger.debug(f"Caching function: {func.__name__}")
+            logger.debug(f"Args: {args}")
+            logger.debug(f"Cache kwargs: {cache_kwargs}")
+            
             # Generate cache key
-            cache_key = _get_cache_key(func, *args, **cache_kwargs)
+            if cache_key_prefix:
+                # Create a unique key with the prefix and function name
+                key_parts = [cache_key_prefix, func.__name__]
+                
+                # Add sort_order explicitly to the key parts if it exists in kwargs
+                if 'sort_order' in kwargs:
+                    key_parts.append(f"sort_order={kwargs['sort_order']}")
+                
+                # Add args to key parts
+                for arg in args:
+                    if isinstance(arg, (str, int, float, bool, type(None))):
+                        key_parts.append(str(arg))
+                    elif hasattr(arg, "__dict__"):
+                        key_parts.append(str(arg.__dict__))
+                    else:
+                        key_parts.append(str(arg))
+                
+                # Add kwargs to key parts
+                for k, v in sorted(cache_kwargs.items()):
+                    if isinstance(v, (str, int, float, bool, type(None))):
+                        key_parts.append(f"{k}:{v}")
+                    elif hasattr(v, "__dict__"):
+                        key_parts.append(f"{k}:{v.__dict__}")
+                    else:
+                        key_parts.append(f"{k}:{v}")
+                
+                # Create a hash of the key parts
+                key_str = ":".join(key_parts)
+                cache_key = hashlib.md5(key_str.encode()).hexdigest()
+                logger.debug(f"Generated cache key with prefix: {cache_key}")
+            else:
+                # Generate the cache key without a prefix
+                cache_key = _get_cache_key(func, *args, **cache_kwargs)
+                logger.debug(f"Generated cache key: {cache_key}")
             
             # Check if result is in cache and not expired
             if cache_key in _cache:

@@ -6,16 +6,19 @@ interface FilterControlsProps {
   filters: ResourceFilters;
   onChange: (filters: ResourceFilters) => void;
   showOwnerFilter?: boolean;
+  onApply?: () => void;
 }
 
 const FilterControls: React.FC<FilterControlsProps> = ({
   filters,
   onChange,
   showOwnerFilter = true,
-}) => {
+  onApply
+}: FilterControlsProps) => {
   const { authState } = useAuth();
   const isAdmin = authState.user?.is_admin || false;
   const [localFilters, setLocalFilters] = useState<ResourceFilters>(filters);
+  const [isApplying, setIsApplying] = useState(false);
   
   // Update local filters when props change
   useEffect(() => {
@@ -47,22 +50,72 @@ const FilterControls: React.FC<FilterControlsProps> = ({
   
   // Apply filters
   const applyFilters = () => {
-    onChange(localFilters);
+    // Show loading state
+    setIsApplying(true);
+    
+    try {
+      console.log('Applying filters:', localFilters);
+      
+      // First update the parent component's state with the local filters
+      onChange(localFilters);
+      
+      // Then trigger the onApply callback to force a refetch
+      if (onApply) {
+        // Use setTimeout to ensure the state update has been processed
+        setTimeout(() => {
+          onApply();
+          // Hide loading state after a short delay to ensure the user sees the feedback
+          setTimeout(() => {
+            setIsApplying(false);
+          }, 300);
+        }, 100);
+      } else {
+        // If no onApply callback, just hide the loading state
+        setIsApplying(false);
+      }
+    } catch (error) {
+      console.error('Error applying filters:', error);
+      setIsApplying(false);
+    }
   };
   
   // Reset filters
   const resetFilters = () => {
-    const resetValues: ResourceFilters = {
-      search: '',
-      is_public: null,
-    };
+    // Show loading state
+    setIsApplying(true);
     
-    if (showOwnerFilter) {
-      resetValues.owner_id = null;
+    try {
+      const resetValues: ResourceFilters = {
+        search: '',
+        is_public: null,
+      };
+      
+      if (showOwnerFilter) {
+        resetValues.owner_id = null;
+      }
+      
+      console.log('Resetting filters to:', resetValues);
+      
+      setLocalFilters(resetValues);
+      onChange(resetValues);
+      
+      if (onApply) {
+        // Use setTimeout to ensure the state update has been processed
+        setTimeout(() => {
+          onApply();
+          // Hide loading state after a short delay
+          setTimeout(() => {
+            setIsApplying(false);
+          }, 300);
+        }, 100);
+      } else {
+        // If no onApply callback, just hide the loading state
+        setIsApplying(false);
+      }
+    } catch (error) {
+      console.error('Error resetting filters:', error);
+      setIsApplying(false);
     }
-    
-    setLocalFilters(resetValues);
-    onChange(resetValues);
   };
   
   return (
@@ -123,8 +176,27 @@ const FilterControls: React.FC<FilterControlsProps> = ({
       </div>
       
       <div className="filter-actions">
-        <button onClick={applyFilters} className="button">Apply Filters</button>
-        <button onClick={resetFilters} className="button button-secondary">Reset</button>
+        <button 
+          onClick={applyFilters} 
+          className="button"
+          disabled={isApplying}
+        >
+          {isApplying ? (
+            <>
+              <span className="button-spinner"></span>
+              Applying...
+            </>
+          ) : (
+            'Apply Filters'
+          )}
+        </button>
+        <button 
+          onClick={resetFilters} 
+          className="button button-secondary"
+          disabled={isApplying}
+        >
+          Reset
+        </button>
       </div>
     </div>
   );

@@ -49,6 +49,10 @@ async def read_resources(
 async def read_my_resources(
     db: AsyncSession = Depends(get_db),
     pagination: PaginationParams = Depends(),
+    sort_by: Optional[str] = Query(None, description="Field to sort by (name, id, etc.)"),
+    sort_order: Optional[str] = Query("asc", description="Sort order (asc or desc)"),
+    is_public: Optional[bool] = Query(None, description="Filter by public status"),
+    search: Optional[str] = Query(None, description="Search term for name or description"),
     current_user: User = Depends(get_current_active_user),
 ) -> Any:
     """
@@ -58,6 +62,10 @@ async def read_my_resources(
         db=db,
         pagination=pagination,
         user_id=current_user.id,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        is_public=is_public,
+        search=search,
     )
 
 

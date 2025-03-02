@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from 'react-query';
+import { useQuery, useQueryClient } from 'react-query';
 import { resourcesApi } from '../api/resourcesApi';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/shared/Pagination';
@@ -12,34 +12,69 @@ import { PageInfo } from '../types/common';
 
 const ResourceListPage: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { authState } = useAuth();
   const isAdmin = authState.user?.is_admin || false;
   
-  // State for pagination, filtering, and sorting
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [filters, setFilters] = useState<ResourceFilters>({
+  // Use refs to track the current values for the query function
+  const filtersRef = useRef<ResourceFilters>({
     owner_id: null,
     is_public: null,
     search: '',
   });
-  const [sort, setSort] = useState<ResourceSort>({
+  
+  const sortRef = useRef<ResourceSort>({
     sort_by: 'name',
     sort_order: 'asc',
   });
   
+  // State for pagination, filtering, and sorting
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [filters, setFilters] = useState<ResourceFilters>(filtersRef.current);
+  const [sort, setSort] = useState<ResourceSort>(sortRef.current);
+  
+  // Add a state to track when to force refetch
+  const [forceRefetch, setForceRefetch] = useState(0);
+  
+  // Update refs when state changes
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
+  
+  useEffect(() => {
+    sortRef.current = sort;
+  }, [sort]);
+  
   // Calculate skip for pagination
   const skip = (page - 1) * limit;
   
-  // Fetch resources with React Query (includes caching)
-  // For admin users, use getResources to see all resources
-  // For regular users, the backend will automatically filter to show only resources they have access to
+  // Define the fetch function outside of useQuery to ensure it always uses the latest state
+  const fetchResources = useCallback(async () => {
+    console.log('Fetching resources with:', {
+      skip,
+      limit,
+      filters: filtersRef.current,
+      sort: sortRef.current
+    });
+    
+    return resourcesApi.getResources(
+      skip,
+      limit,
+      filtersRef.current,
+      sortRef.current
+    );
+  }, [skip, limit, forceRefetch]); // Only depend on pagination and forceRefetch
+  
+  // Fetch resources with React Query
   const { data, isLoading, error, refetch } = useQuery(
-    ['resources', skip, limit, filters, sort, isAdmin],
-    () => resourcesApi.getResources(skip, limit, filters, sort),
+    ['resources', skip, limit, forceRefetch],
+    fetchResources,
     {
-      keepPreviousData: true, // Keep previous data while loading new data
-      staleTime: 30000, // Consider data fresh for 30 seconds
+      keepPreviousData: true,
+      staleTime: 0, // Always consider data stale to ensure refetching
+      cacheTime: 0, // Don't cache the data
+      refetchOnWindowFocus: false,
     }
   );
   
@@ -49,14 +84,37 @@ const ResourceListPage: React.FC = () => {
   }, [filters, limit]);
   
   // Handle filter changes
-  const handleFilterChange = (newFilters: ResourceFilters) => {
+  const handleFilterChange = useCallback((newFilters: ResourceFilters) => {
+    console.log('Filter changed:', newFilters);
     setFilters(newFilters);
-  };
+    filtersRef.current = newFilters;
+  }, []);
   
   // Handle sort changes
-  const handleSortChange = (newSort: ResourceSort) => {
+  const handleSortChange = useCallback((newSort: ResourceSort) => {
+    console.log('Sort changed:', newSort);
     setSort(newSort);
-  };
+    sortRef.current = newSort;
+  }, []);
+  
+  // Force refetch data
+  const handleApplyChanges = useCallback(() => {
+    console.log('Applying changes with:', {
+      filters: filtersRef.current,
+      sort: sortRef.current
+    });
+    
+    // Increment forceRefetch to trigger a new query
+    setForceRefetch(prev => prev + 1);
+    
+    // Clear the cache for this query
+    queryClient.removeQueries(['resources']);
+    
+    // Manually refetch
+    setTimeout(() => {
+      refetch();
+    }, 0);
+  }, [refetch, queryClient]);
   
   // Handle pagination changes
   const handlePageChange = (newPage: number) => {
@@ -107,9 +165,14 @@ const ResourceListPage: React.FC = () => {
           filters={filters}
           onChange={handleFilterChange}
           showOwnerFilter={authState.user?.is_admin}
+          onApply={handleApplyChanges}
         />
         
-        <SortControls sort={sort} onChange={handleSortChange} />
+        <SortControls 
+          sort={sort} 
+          onChange={handleSortChange} 
+          onApply={handleApplyChanges}
+        />
         
         {isLoading ? (
           <div className="loading-container">
