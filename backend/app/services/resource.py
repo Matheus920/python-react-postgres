@@ -44,6 +44,10 @@ class ResourceService:
                 detail="Resource not found",
             )
         
+        # Admin users can access any resource
+        if current_user.is_admin:
+            return resource
+        
         # Check if the user has access to the resource
         if resource.owner_id != current_user.id and not resource.is_public:
             # Check if the resource is shared with the user
@@ -84,25 +88,67 @@ class ResourceService:
         Returns:
             Page[Resource]: Paginated resources
         """
-        # Get resources
-        resources = await resource_repository.get_with_filter(
-            db,
-            owner_id=owner_id,
-            is_public=is_public,
-            search=search,
-            sort_by=sort_by,
-            sort_order=sort_order,
-            skip=pagination.skip,
-            limit=pagination.limit
-        )
-        
-        # Count total resources
-        total = await resource_repository.count_with_filter(
-            db,
-            owner_id=owner_id,
-            is_public=is_public,
-            search=search
-        )
+        # If user is admin, they can see all resources with applied filters
+        # If user is not admin, they can only see their own resources or resources shared with them
+        if current_user.is_admin:
+            # Admin user - get resources with filters
+            resources = await resource_repository.get_with_filter(
+                db,
+                owner_id=owner_id,
+                is_public=is_public,
+                search=search,
+                sort_by=sort_by,
+                sort_order=sort_order,
+                skip=pagination.skip,
+                limit=pagination.limit
+            )
+            
+            # Count total resources
+            total = await resource_repository.count_with_filter(
+                db,
+                owner_id=owner_id,
+                is_public=is_public,
+                search=search
+            )
+        else:
+            # Regular user - get only resources they own or have been shared with them
+            # If owner_id is specified and it's not the current user, ignore it for security
+            effective_owner_id = owner_id if owner_id == current_user.id else None
+            
+            if effective_owner_id is None:
+                # Get resources owned by or shared with the user
+                resources = await resource_repository.get_by_user(
+                    db,
+                    user_id=current_user.id,
+                    skip=pagination.skip,
+                    limit=pagination.limit
+                )
+                
+                # Count total resources
+                total = await resource_repository.count_by_user(
+                    db, 
+                    user_id=current_user.id
+                )
+            else:
+                # Get only resources owned by the user (with additional filters)
+                resources = await resource_repository.get_with_filter(
+                    db,
+                    owner_id=current_user.id,
+                    is_public=is_public,
+                    search=search,
+                    sort_by=sort_by,
+                    sort_order=sort_order,
+                    skip=pagination.skip,
+                    limit=pagination.limit
+                )
+                
+                # Count total resources
+                total = await resource_repository.count_with_filter(
+                    db,
+                    owner_id=current_user.id,
+                    is_public=is_public,
+                    search=search
+                )
         
         # Create paginated response
         return create_page(resources, total, pagination)
@@ -192,6 +238,10 @@ class ResourceService:
                 detail="Resource not found",
             )
         
+        # Admin users can update any resource
+        if current_user.is_admin:
+            return await resource_repository.update(db, db_obj=resource, obj_in=obj_in)
+        
         try:
             return await resource_repository.update_with_owner_check(
                 db, db_obj=resource, obj_in=obj_in, current_user_id=current_user.id
@@ -223,6 +273,16 @@ class ResourceService:
         Raises:
             HTTPException: If the resource is not found or the user is not the owner
         """
+        # Admin users can delete any resource
+        if current_user.is_admin:
+            resource = await resource_repository.get(db, id=id)
+            if not resource:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Resource not found",
+                )
+            return await resource_repository.remove(db, id=id)
+        
         try:
             return await resource_repository.remove_with_owner_check(
                 db, id=id, current_user_id=current_user.id
@@ -266,7 +326,8 @@ class ResourceService:
                 detail="Resource not found",
             )
         
-        if resource.owner_id != current_user.id:
+        # Admin users can share any resource
+        if not current_user.is_admin and resource.owner_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not enough permissions",
@@ -312,7 +373,8 @@ class ResourceService:
                 detail="Resource not found",
             )
         
-        if resource.owner_id != current_user.id:
+        # Admin users can unshare any resource
+        if not current_user.is_admin and resource.owner_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not enough permissions",

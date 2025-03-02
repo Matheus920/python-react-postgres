@@ -13,6 +13,7 @@ import { PageInfo } from '../types/common';
 const ResourceListPage: React.FC = () => {
   const navigate = useNavigate();
   const { authState } = useAuth();
+  const isAdmin = authState.user?.is_admin || false;
   
   // State for pagination, filtering, and sorting
   const [page, setPage] = useState(1);
@@ -31,8 +32,10 @@ const ResourceListPage: React.FC = () => {
   const skip = (page - 1) * limit;
   
   // Fetch resources with React Query (includes caching)
+  // For admin users, use getResources to see all resources
+  // For regular users, the backend will automatically filter to show only resources they have access to
   const { data, isLoading, error, refetch } = useQuery(
-    ['resources', skip, limit, filters, sort],
+    ['resources', skip, limit, filters, sort, isAdmin],
     () => resourcesApi.getResources(skip, limit, filters, sort),
     {
       keepPreviousData: true, // Keep previous data while loading new data

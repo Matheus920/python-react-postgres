@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ResourceFilters } from '../../types/resource';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface FilterControlsProps {
   filters: ResourceFilters;
@@ -12,6 +13,8 @@ const FilterControls: React.FC<FilterControlsProps> = ({
   onChange,
   showOwnerFilter = true,
 }) => {
+  const { authState } = useAuth();
+  const isAdmin = authState.user?.is_admin || false;
   const [localFilters, setLocalFilters] = useState<ResourceFilters>(filters);
   
   // Update local filters when props change
@@ -32,7 +35,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
     
     // Parse number values or null
     if (name === 'owner_id') {
-      parsedValue = value === '' ? null : parseInt(value, 10);
+      parsedValue = value === '' ? null : value === 'current' ? authState.user?.id || null : parseInt(value, 10);
     }
     
     // Update local filters
@@ -82,11 +85,14 @@ const FilterControls: React.FC<FilterControlsProps> = ({
           <select
             id="owner_id"
             name="owner_id"
-            value={localFilters.owner_id === null ? '' : localFilters.owner_id}
+            value={localFilters.owner_id === null ? '' : 
+                  localFilters.owner_id === authState.user?.id ? 'current' : 
+                  localFilters.owner_id}
             onChange={handleInputChange}
           >
-            <option value="">All Owners</option>
+            <option value="">All Resources</option>
             <option value="current">My Resources</option>
+            {isAdmin && <option value="shared">Shared Resources</option>}
           </select>
         </div>
       )}
@@ -110,7 +116,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
             } as unknown as React.ChangeEvent<HTMLSelectElement>);
           }}
         >
-          <option value="">All Resources</option>
+          <option value="">All Visibility</option>
           <option value="true">Public Only</option>
           <option value="false">Private Only</option>
         </select>

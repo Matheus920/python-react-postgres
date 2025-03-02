@@ -1,22 +1,22 @@
-// Simple script to test the authentication flow
+// Simple script to test the regular user authentication flow
 const axios = require('axios');
 
 // Base URL for the API
 const BASE_URL = 'http://localhost:8000/api/v1';
 
-// Test user credentials
-const TEST_USERNAME = 'testuser';
-const TEST_PASSWORD = 'password123';
+// Regular user credentials
+const REGULAR_USERNAME = 'regularuser';
+const REGULAR_PASSWORD = 'password123';
 
-// Function to test the authentication flow
-async function testAuth() {
+// Function to test the authentication flow for a regular user
+async function testRegularUserAuth() {
   try {
-    console.log('Testing authentication flow...');
+    console.log('Testing regular user authentication flow...');
     
     // Step 1: Login
-    console.log('Step 1: Logging in...');
+    console.log('Step 1: Logging in as regular user...');
     const loginResponse = await axios.post(`${BASE_URL}/auth/login`, 
-      `username=${TEST_USERNAME}&password=${TEST_PASSWORD}`,
+      `username=${REGULAR_USERNAME}&password=${REGULAR_PASSWORD}`,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -48,6 +48,14 @@ async function testAuth() {
     
     console.log('Get current user successful:', userResponse.status);
     console.log('User data:', userResponse.data);
+    
+    // Verify that the user is not an admin
+    if (userResponse.data.is_admin) {
+      console.error('Test failed: User is an admin, but should be a regular user');
+      return;
+    }
+    
+    console.log('Verified: User is a regular user (not an admin)');
     
     // Step 3: Get resources
     console.log('\nStep 3: Getting resources...');
@@ -107,10 +115,10 @@ async function testAuth() {
       }
     }
     
-    // Step 5: Get a private resource that the user doesn't own (admin access test)
-    // We'll use a known resource ID that the test user doesn't own
+    // Step 5: Try to get a private resource that the user doesn't own (should fail)
+    // We'll use a known resource ID that the regular user doesn't own
     const privateResourceId = 831; // This is a private resource owned by another user
-    console.log('\nStep 5: Getting private resource with ID', privateResourceId, '(admin access test)');
+    console.log('\nStep 5: Trying to get private resource with ID', privateResourceId, '(should fail)');
     
     try {
       const privateResourceResponse = await axios.get(`${BASE_URL}/resources/${privateResourceId}`, {
@@ -123,22 +131,23 @@ async function testAuth() {
         withCredentials: true
       });
       
-      if (privateResourceResponse.status !== 200) {
-        console.error('Get private resource failed:', privateResourceResponse.status, privateResourceResponse.statusText);
+      console.error('Test failed: Regular user was able to access a private resource owned by another user');
+      console.error('Response status:', privateResourceResponse.status);
+      console.error('Response data:', privateResourceResponse.data);
+      return;
+    } catch (error) {
+      if (error.response && error.response.status === 403) {
+        console.log('Access denied as expected:', error.response.status);
+        console.log('Error message:', error.response.data.detail);
+        console.log('Permission test passed: Regular user cannot access private resources owned by other users');
+      } else {
+        console.error('Unexpected error:', error.message);
+        if (error.response) {
+          console.error('Response status:', error.response.status);
+          console.error('Response data:', error.response.data);
+        }
         return;
       }
-      
-      console.log('Get private resource successful:', privateResourceResponse.status);
-      console.log('Private resource data:', privateResourceResponse.data);
-      console.log('Admin access test passed: Admin user can access resources owned by other users');
-    } catch (error) {
-      console.error('Admin access test failed: Admin user cannot access resources owned by other users');
-      console.error('Error:', error.message);
-      if (error.response) {
-        console.error('Response status:', error.response.status);
-        console.error('Response data:', error.response.data);
-      }
-      return;
     }
     
     console.log('\nAll tests passed successfully!');
@@ -152,4 +161,4 @@ async function testAuth() {
 }
 
 // Run the test
-testAuth();
+testRegularUserAuth();

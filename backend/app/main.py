@@ -15,6 +15,8 @@ app = FastAPI(
     description="Resource Management System API",
     version="0.1.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    # Disable automatic redirection of trailing slashes to avoid authentication issues
+    redirect_slashes=False,
 )
 
 # Set up middlewares

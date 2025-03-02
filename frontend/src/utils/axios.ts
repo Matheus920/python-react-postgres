@@ -8,10 +8,10 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  // Enable automatic redirect following
-  maxRedirects: 5,
-  // Preserve the Authorization header during redirects
-  validateStatus: (status: number) => status >= 200 && status < 400,
+  // Disable automatic redirect following to handle redirects manually
+  maxRedirects: 0,
+  // Consider all status codes as valid to handle redirects manually
+  validateStatus: (status: number) => true,
 });
 
 // Request interceptor for adding auth token
@@ -29,18 +29,6 @@ axiosInstance.interceptors.request.use(
       console.log('No token found in localStorage or no headers in config');
     }
     
-    // Preserve Authorization header during redirects
-    if (config.headers) {
-      config.headers['Cache-Control'] = 'no-cache';
-      // This ensures that the Authorization header is preserved during redirects
-      if (!config.maxRedirects) {
-        config.maxRedirects = 5;
-      }
-      if (!config.withCredentials) {
-        config.withCredentials = true;
-      }
-    }
-    
     return config;
   },
   (error: AxiosError): Promise<AxiosError> => {
@@ -49,10 +37,34 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Response interceptor for handling errors
+// Response interceptor for handling redirects and errors
 axiosInstance.interceptors.response.use(
-  (response: AxiosResponse): AxiosResponse => {
+  (response: AxiosResponse): AxiosResponse | Promise<AxiosResponse> => {
     console.log('Response successful:', response.config.url);
+    
+    // Handle redirects manually
+    if (response.status >= 300 && response.status < 400 && response.headers.location) {
+      console.log('Handling redirect to:', response.headers.location);
+      
+      // Create a new request to the redirect location with the same headers
+      const redirectUrl = response.headers.location;
+      
+      // If the redirect URL is relative, prepend the baseURL
+      const fullRedirectUrl = redirectUrl.startsWith('http') 
+        ? redirectUrl 
+        : `${axiosInstance.defaults.baseURL}${redirectUrl}`;
+      
+      console.log('Full redirect URL:', fullRedirectUrl);
+      
+      // Make a new request to the redirect location with the same headers
+      return axiosInstance({
+        url: fullRedirectUrl,
+        method: response.config.method,
+        headers: response.config.headers,
+        data: response.config.data,
+      });
+    }
+    
     return response;
   },
   (error: AxiosError): Promise<AxiosError> => {
@@ -67,13 +79,20 @@ axiosInstance.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       console.error('401 Unauthorized error detected');
       
-      // Clear token and redirect to login if not already on login page
-      localStorage.removeItem('token');
-      console.log('Token removed from localStorage due to 401 error');
+      // Only clear token and redirect if not on login page and not a redirect
+      const isRedirect = error.config?.url?.includes('?') || error.config?.url?.endsWith('/');
       
-      if (window.location.pathname !== '/login') {
-        console.log('Redirecting to login page');
-        window.location.href = '/login';
+      if (!isRedirect) {
+        // Clear token and redirect to login if not already on login page
+        localStorage.removeItem('token');
+        console.log('Token removed from localStorage due to 401 error');
+        
+        if (window.location.pathname !== '/login') {
+          console.log('Redirecting to login page');
+          window.location.href = '/login';
+        }
+      } else {
+        console.log('Not clearing token for redirect-related 401');
       }
     }
 
